@@ -54,10 +54,29 @@ class Player
   end
 end
 
+class Enemy
+  def initialize pos_x, pos_y
+    @size = 20
+    @pos_x = pos_x
+    @pos_y = pos_y
+    @speed = 5
+  end
+  def render
+    $solids << [@pos_x, @pos_y, @size, @size, 255, 0, 0]
+  end
+end
+
 class InvadersGame
   def initialize (args)
     @player = Player.new 30
     @bullets = []
+    @enemies = []
+    for i in 1..17
+      x = ($screen_width/16)*i
+      y = $screen_height - 100
+      enemy = Enemy.new x , y
+      @enemies << enemy
+    end
   end
   def render_background
     $solids << [0,0,$screen_width,$screen_height]
@@ -75,11 +94,17 @@ class InvadersGame
       bullet.render
     end
   end
+  def update_enemies
+    @enemies.each do |enemy|
+      enemy.render
+    end
+  end
   def tick
     render_background
     @player.update
     @player.render
     update_bullets
+    update_enemies
   end
 end
 
