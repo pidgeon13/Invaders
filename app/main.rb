@@ -44,13 +44,14 @@ class Player
   end
   def fire_bullet
     @cooldown=@max_cooldown
+    $sounds << "audio/flaunch.wav"
     return Bullet.new @pos_x + (@size/2), @pos_y +@size, 1
   end
   def can_fire
     return @cooldown <= 0
   end
   def render
-    $solids << [@pos_x, @pos_y, @size, @size, 0, 255, 255]
+    $sprites << [@pos_x, @pos_y, @size*1.2, @size*1.9, "sprites/kestral.png"]
   end
 end
 
@@ -111,6 +112,8 @@ end
 def tick args
   $inputs = args.inputs
   $solids = args.outputs.solids
+  $sprites = args.outputs.sprites
+  $sounds = args.outputs.sounds
   args.state.game ||= InvadersGame.new args
   args.state.game.tick
 end
