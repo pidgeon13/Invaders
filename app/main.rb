@@ -2,6 +2,10 @@ $gtk.reset
 
 $screen_width = 1280
 $screen_height = 720
+$game_width = 600
+
+$game_left_extent = ($screen_width-$game_width)/2
+$game_right_extent=$game_left_extent + $game_width
 
 class Bullet
   attr_reader :pos_x
@@ -16,7 +20,7 @@ class Bullet
     @pos_y += (@dir*10)
   end
   def render
-    $solids << [@pos_x, @pos_y, @size, @size, 255, 255, 255]
+    $solids << [@pos_x, @pos_y, @size, @size, 255, 0, 255]
   end
 end
 
@@ -25,21 +29,25 @@ class Player
   attr_reader :pos_y
   def initialize size
     @size = size
-    @pos_x =($screen_width - @size) / 2
+    @pos_x = ($screen_width - @size) / 2
     @pos_y = 10
     @speed = 12
     @cooldown = 0
     @max_cooldown = 10
   end
   def update
-    if($inputs.keyboard.key_held.left && @pos_x >=@speed)
-      @pos_x-=@speed
-    end
-    if($inputs.keyboard.key_held.right && @pos_x <= $screen_width - @size- @speed)
-      @pos_x+=@speed
-    end
     if(@cooldown > 0)
       @cooldown -= 1
+    end
+  end
+  def move_left
+    if(@pos_x >= $game_left_extent + @speed)
+      @pos_x-=@speed
+    end
+  end
+  def move_right
+    if(@pos_x <= $game_right_extent - @size- @speed)
+      @pos_x+=@speed
     end
   end
   def fire_bullet
@@ -51,19 +59,31 @@ class Player
     return @cooldown <= 0
   end
   def render
+    puts "something"
     $sprites << [@pos_x, @pos_y, @size*1.2, @size*1.9, "sprites/kestral.png"]
   end
 end
 
-class Enemy
-  def initialize pos_x, pos_y
-    @size = 20
+class Enemy_Grid
+  def initialize number_x, number_y, pos_x = $game_left_extent , pos_y = 0, offset = 30
+    @number_x = number_x
+    @number_y = number_y
     @pos_x = pos_x
     @pos_y = pos_y
-    @speed = 5
+    @offset = offset
+    @size=offset-2
+    @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
+    @dir = 1
   end
   def render
-    $solids << [@pos_x, @pos_y, @size, @size, 255, 0, 0]
+    for i in 0..@grid.length-1
+      column=@grid[i]
+      for j in 0..column.length-1
+        if(column[j]!=0)
+          $sprites << [@pos_x+i*@offset, $screen_height-j*@offset, @size, @size, "sprites/Mantis.png"]
+        end
+      end
+    end
   end
 end
 
@@ -71,16 +91,11 @@ class InvadersGame
   def initialize (args)
     @player = Player.new 30
     @bullets = []
-    @enemies = []
-    for i in 1..17
-      x = ($screen_width/16)*i
-      y = $screen_height - 100
-      enemy = Enemy.new x , y
-      @enemies << enemy
-    end
+    @enemies = Enemy_Grid.new 10, 3
   end
   def render_background
-    $solids << [0,0,$screen_width,$screen_height]
+    $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
+    $solids << [$game_left_extent, 0, $game_width, $screen_height]
   end
   def update_bullets
     if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
@@ -95,17 +110,21 @@ class InvadersGame
       bullet.render
     end
   end
-  def update_enemies
-    @enemies.each do |enemy|
-      enemy.render
+  def update_player
+    if ($inputs.keyboard.key_held.left)
+      @player.move_left
     end
+    if ($inputs.keyboard.key_held.right)
+      @player.move_right
+    end
+    @player.update
+    @player.render
   end
   def tick
     render_background
-    @player.update
-    @player.render
+    update_player
     update_bullets
-    update_enemies
+    @enemies.render
   end
 end
 
