@@ -46,7 +46,7 @@ class Player
     end
   end
   def move_right
-    if(@pos_x <= $game_right_extent - @size- @speed)
+    if(@pos_x <= $game_right_extent - @size - @speed)
       @pos_x+=@speed
     end
   end
@@ -59,30 +59,53 @@ class Player
     return @cooldown <= 0
   end
   def render
-    puts "something"
     $sprites << [@pos_x, @pos_y, @size*1.2, @size*1.9, "sprites/kestral.png"]
   end
 end
 
 class Enemy_Grid
-  def initialize number_x, number_y, pos_x = $game_left_extent , pos_y = 0, offset = 30
+  def initialize number_x, number_y, pos_x = $game_left_extent , pos_y = $screen_height, offset = 50
     @number_x = number_x
     @number_y = number_y
     @pos_x = pos_x
     @pos_y = pos_y
     @offset = offset
-    @size=offset-2
     @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
-    @dir = 1
+    @velocity = 1
+    @vertical_jump = @offset/2
   end
   def render
     for i in 0..@grid.length-1
       column=@grid[i]
-      for j in 0..column.length-1
+      for j in 1..column.length
         if(column[j]!=0)
-          $sprites << [@pos_x+i*@offset, $screen_height-j*@offset, @size, @size, "sprites/Mantis.png"]
+          $sprites << [@pos_x+i*@offset, @pos_y - (j+1)*@offset, @offset, @offset, "sprites/Mantis.png"]
         end
       end
+    end
+  end
+  def length
+    return @offset*@number_x
+  end
+  def height
+    return @offset*@number_y
+  end
+  def needs_to_move_down
+    moving_right = @velocity > 0
+    if moving_right
+      #Check if we've hit the right side of the board
+      return @pos_x + length >= $game_right_extent + @velocity
+    else
+      #Check if we've hit the left side of the board
+      return @pos_x <= $game_left_extent - @velocity
+    end
+  end
+  def move
+    if needs_to_move_down 
+      @pos_y-= @vertical_jump
+      @velocity = -@velocity
+    else
+      @pos_x += @velocity
     end
   end
 end
@@ -102,7 +125,6 @@ class InvadersGame
       if @player.can_fire
         @bullets << @player.fire_bullet
       end
-      puts "#{@bullets.size}"
     end
     @bullets.delete_if {|bullet| bullet.pos_y >= $screen_height}
     @bullets.each do |bullet|
@@ -124,6 +146,7 @@ class InvadersGame
     render_background
     update_player
     update_bullets
+    @enemies.move
     @enemies.render
   end
 end
