@@ -36,9 +36,9 @@ class Player
     @size = size
     @pos_x = ($screen_width - @size) / 2
     @pos_y = 10
-    @speed = 12
+    @speed = 8
     @cooldown = 0
-    @max_cooldown = 10
+    @max_cooldown = 30
   end
   def update
     if(@cooldown > 0)
@@ -129,11 +129,43 @@ class Enemy_Grid
       return false
     end
     hitting = false
-    if(@grid[index_x][index_y] == 1)
+    if(@grid[index_x][index_y] !=0)
       hitting = true
       @grid[index_x][index_y] = 0
     end
     return hitting
+  end
+  def is_empty column
+    return column.all? {|value| value == 0}
+  end
+  def clean
+    indexes_to_remove = []
+    possible_indexes_to_remove = []
+    all_empty_so_far = true
+    for i in 0..@grid.length - 1
+      column = @grid[i]
+      if(is_empty column)
+        if(all_empty_so_far)
+          indexes_to_remove << i
+        else
+          possible_indexes_to_remove << i
+        end
+      else
+        all_empty_so_far = false
+        possible_indexes_to_remove = []
+      end
+    end
+    if all_empty_so_far
+      @grid= []
+    else
+      pre_columns_removed = indexes_to_remove.length
+      indexes_to_remove += possible_indexes_to_remove
+      indexes_to_remove.reverse_each do |index|
+        @grid.delete_at index
+      end
+      @number_x = @grid.length
+      @pos_x += pre_columns_removed*@size_x
+    end
   end
 end
 
@@ -176,6 +208,7 @@ class InvadersGame
     render_background
     update_player
     update_bullets
+    @enemies.clean
     @enemies.move
     @enemies.render
   end
