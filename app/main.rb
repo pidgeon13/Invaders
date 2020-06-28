@@ -71,6 +71,7 @@ class Player
 end
 
 class Enemy_Grid
+  attr_reader :pos_y
   def initialize number_x, number_y, left = $game_left_extent, top = $screen_height, size_x = 30
     @number_x = number_x
     @number_y = number_y
@@ -79,7 +80,7 @@ class Enemy_Grid
     @pos_x = left
     @pos_y = top - @number_y * @size_y
     @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
-    @velocity = 1
+    @velocity = 20
     @vertical_jump = @size_y/2
   end
   def render
@@ -124,7 +125,6 @@ class Enemy_Grid
     end
     index_x = (distance_x/@size_x).floor
     index_y = (distance_y/@size_y).floor
-    puts index_x
     if(index_x >= @number_x || index_y >= @number_y)
       return false
     end
@@ -138,7 +138,7 @@ class Enemy_Grid
   def is_empty column
     return column.all? {|value| value == 0}
   end
-  def clean
+  def clean_columns
     indexes_to_remove = []
     possible_indexes_to_remove = []
     all_empty_so_far = true
@@ -167,6 +167,29 @@ class Enemy_Grid
       @pos_x += pre_columns_removed*@size_x
     end
   end
+  def number_leading_zeros column
+    zeros=0
+    column.each do |value|
+      if value !=0
+        break
+      end
+      zeros+=1
+    end
+    return zeros
+  end
+  def clean_rows
+    leading_zeros = @grid.map { |col| number_leading_zeros col}
+    rows_to_clean = leading_zeros.min
+    @grid.each do |column|
+      column.slice! 0, rows_to_clean
+    end
+    @number_y -= rows_to_clean
+    @pos_y += rows_to_clean*@size_y
+  end
+  def clean
+    clean_columns
+    clean_rows
+  end
 end
 
 class InvadersGame
@@ -174,10 +197,13 @@ class InvadersGame
     @player = Player.new 30
     @bullets = []
     @enemies = Enemy_Grid.new 15, 4
+    @death_point = 100
+    @game_over = false
   end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
     $solids << [$game_left_extent, 0, $game_width, $screen_height]
+    $lines << [$game_left_extent, @death_point, $game_right_extent, @death_point, 255,255,255]
   end
   def update_bullets
     if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
@@ -204,13 +230,32 @@ class InvadersGame
     @player.update
     @player.render
   end
+  def render_game_over
+    $labels << [$game_left_extent+$game_width/2,3*$screen_height/4, "Game Over", 10, 1, 255, 255, 255]
+    $labels << [$game_left_extent+$game_width/2,5*$screen_height/8, "Press the enter key to play again", 4, 1, 255, 255, 255] 
+  end
+  def restart_game_if_prompted
+    if $inputs.keyboard.key_down.enter
+      @bullets = []
+      @enemies = Enemy_Grid.new 15, 4
+      @game_over=false
+    end
+  end
   def tick
     render_background
-    update_player
-    update_bullets
-    @enemies.clean
-    @enemies.move
-    @enemies.render
+    if(@game_over)
+      render_game_over
+      restart_game_if_prompted
+    else
+      update_player
+      update_bullets
+      @enemies.clean
+      @enemies.move
+      @enemies.render
+      if(@enemies.pos_y <= @death_point)
+        @game_over=true
+      end
+    end
   end
 end
 
@@ -219,6 +264,8 @@ def tick args
   $solids = args.outputs.solids
   $sprites = args.outputs.sprites
   $sounds = args.outputs.sounds
+  $lines = args.outputs.lines
+  $labels = args.outputs.labels
   args.state.game ||= InvadersGame.new args
   args.state.game.tick
 end
