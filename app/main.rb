@@ -72,7 +72,7 @@ end
 
 class Enemy_Grid
   attr_reader :pos_y
-  def initialize number_x, number_y, left = $game_left_extent, top = $screen_height, size_x = 30
+  def initialize number_x, number_y, velocity = 1, left = $game_left_extent, top = $screen_height, size_x = 30
     @number_x = number_x
     @number_y = number_y
     @size_x = size_x
@@ -80,7 +80,7 @@ class Enemy_Grid
     @pos_x = left
     @pos_y = top - @number_y * @size_y
     @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
-    @velocity = 20
+    @velocity = velocity
     @vertical_jump = @size_y/2
   end
   def render
@@ -178,6 +178,9 @@ class Enemy_Grid
     return zeros
   end
   def clean_rows
+    if(@grid.empty?)
+      return false
+    end
     leading_zeros = @grid.map { |col| number_leading_zeros col}
     rows_to_clean = leading_zeros.min
     @grid.each do |column|
@@ -185,10 +188,14 @@ class Enemy_Grid
     end
     @number_y -= rows_to_clean
     @pos_y += rows_to_clean*@size_y
+    return true
   end
   def clean
     clean_columns
     clean_rows
+  end
+  def any_alive
+    return @grid.length > 0
   end
 end
 
@@ -196,14 +203,19 @@ class InvadersGame
   def initialize (args)
     @player = Player.new 30
     @bullets = []
-    @enemies = Enemy_Grid.new 15, 4
+    @enemies = Enemy_Grid.new 5, 2
     @death_point = 100
     @game_over = false
+    @score = 0
+    @high_score = 0
+    @current_level = 1
   end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
     $solids << [$game_left_extent, 0, $game_width, $screen_height]
     $lines << [$game_left_extent, @death_point, $game_right_extent, @death_point, 255,255,255]
+    $labels << [$game_right_extent+$game_width/4,7*$screen_height/8, "Score: #{@score}", 4, 1, 255, 255, 255]
+    $labels << [$game_right_extent+$game_width/4,3*$screen_height/4, "High Score: #{@high_score }", 4, 1, 255, 255, 255]
   end
   def update_bullets
     if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
@@ -216,6 +228,8 @@ class InvadersGame
       bullet.move
       if(@enemies.hitting bullet)
         bullet.remove
+        @score+=1
+        @high_score = [@high_score, @score].max
       end
       bullet.render
     end
@@ -234,11 +248,30 @@ class InvadersGame
     $labels << [$game_left_extent+$game_width/2,3*$screen_height/4, "Game Over", 10, 1, 255, 255, 255]
     $labels << [$game_left_extent+$game_width/2,5*$screen_height/8, "Press the enter key to play again", 4, 1, 255, 255, 255] 
   end
+  def restart_level level
+    if level == 1
+      restart_game 10, 3, 1, true
+    elsif level == 2
+      restart_game 12, 4, 1
+    elsif level == 3
+      restart_game 15, 4, 1.5
+    elsif level == 4
+      restart_game 20, 4, 2
+    elsif level == 5
+      restart_game 20, 5, 2
+    end 
+  end
+  def restart_game enemy_grid_x, enemy_grid_y, velocity, reset_score = false
+    @bullets = []
+    @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity
+    @game_over=false
+    if reset_score
+      @score=0 
+    end
+  end
   def restart_game_if_prompted
     if $inputs.keyboard.key_down.enter
-      @bullets = []
-      @enemies = Enemy_Grid.new 15, 4
-      @game_over=false
+      restart_level 1
     end
   end
   def tick
@@ -250,10 +283,15 @@ class InvadersGame
       update_player
       update_bullets
       @enemies.clean
-      @enemies.move
-      @enemies.render
-      if(@enemies.pos_y <= @death_point)
-        @game_over=true
+      if(@enemies.any_alive)
+        @enemies.move
+        @enemies.render
+        if(@enemies.pos_y <= @death_point)
+          @game_over=true
+        end
+      else
+        @current_level+=1
+        restart_level @current_level
       end
     end
   end
