@@ -203,12 +203,13 @@ class InvadersGame
   def initialize (args)
     @player = Player.new 30
     @bullets = []
-    @enemies = Enemy_Grid.new 5, 2
+    @enemies = Enemy_Grid.new 10, 3, 1
     @death_point = 100
     @game_over = false
     @score = 0
     @high_score = 0
     @current_level = 1
+    @picking_upgrade = false
   end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
@@ -216,6 +217,7 @@ class InvadersGame
     $lines << [$game_left_extent, @death_point, $game_right_extent, @death_point, 255,255,255]
     $labels << [$game_right_extent+$game_width/4,7*$screen_height/8, "Score: #{@score}", 4, 1, 255, 255, 255]
     $labels << [$game_right_extent+$game_width/4,3*$screen_height/4, "High Score: #{@high_score }", 4, 1, 255, 255, 255]
+    $labels << [$game_left_extent-$game_width/4,7*$screen_height/8, "Level: #{@current_level }", 4, 1, 255, 255, 255]
   end
   def update_bullets
     if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
@@ -244,24 +246,30 @@ class InvadersGame
     @player.update
     @player.render
   end
+  def update_enemies
+    @enemies.move
+    @enemies.render
+    if(@enemies.pos_y <= @death_point)
+      @game_over=true
+    end
+  end
   def render_game_over
     $labels << [$game_left_extent+$game_width/2,3*$screen_height/4, "Game Over", 10, 1, 255, 255, 255]
     $labels << [$game_left_extent+$game_width/2,5*$screen_height/8, "Press the enter key to play again", 4, 1, 255, 255, 255] 
   end
-  def restart_level level
-    if level == 1
-      restart_game 10, 3, 1, true
-    elsif level == 2
-      restart_game 12, 4, 1
-    elsif level == 3
-      restart_game 15, 4, 1.5
-    elsif level == 4
-      restart_game 20, 4, 2
-    elsif level == 5
-      restart_game 20, 5, 2
+  def start_level
+    case @current_level
+    when 1
+      restart 10, 3, 1, true
+    when 2
+      restart 15, 4, 1.5
+    when 3
+      restart 15, 4, 2
+    else
+      restart 15, 5, 0.4*(@current_level+1)
     end 
   end
-  def restart_game enemy_grid_x, enemy_grid_y, velocity, reset_score = false
+  def restart enemy_grid_x, enemy_grid_y, velocity, reset_score = false
     @bullets = []
     @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity
     @game_over=false
@@ -271,27 +279,30 @@ class InvadersGame
   end
   def restart_game_if_prompted
     if $inputs.keyboard.key_down.enter
-      restart_level 1
+      @current_level = 1
+      start_level
     end
+  end
+  def render_choices
+    l=5
   end
   def tick
     render_background
-    if(@game_over)
+    if @game_over
       render_game_over
       restart_game_if_prompted
+    elsif @picking_upgrade
+      render_choices
     else
       update_player
       update_bullets
       @enemies.clean
       if(@enemies.any_alive)
-        @enemies.move
-        @enemies.render
-        if(@enemies.pos_y <= @death_point)
-          @game_over=true
-        end
+        update_enemies
       else
+        #@picking_upgrade = true
         @current_level+=1
-        restart_level @current_level
+        start_level
       end
     end
   end
