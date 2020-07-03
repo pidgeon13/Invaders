@@ -11,15 +11,16 @@ class Bullet
   attr_reader :pos_x
   attr_reader :pos_y
   attr_reader :needs_deleting
-  def initialize pos_x, pos_y, dir
+  def initialize pos_x, pos_y, speed, dir = 1
     @pos_x = pos_x
     @pos_y = pos_y
     @dir = dir
+    @speed = speed
     @size = 5
     @needs_deleting = false
   end
   def move
-    @pos_y += (@dir*10)
+    @pos_y += (@dir*10*@speed)
   end
   def render
     $solids << [@pos_x, @pos_y, @size, @size, 255, 0, 255]
@@ -39,6 +40,7 @@ class Player
     @speed = 8
     @cooldown = 0
     @max_cooldown = 30
+    @bullet_speed = 1
   end
   def update
     if(@cooldown > 0)
@@ -58,7 +60,7 @@ class Player
   def fire_bullet
     @cooldown=@max_cooldown
     $sounds << "audio/flaunch.wav"
-    return Bullet.new @pos_x + (@size/2), @pos_y +@size, 1
+    return Bullet.new @pos_x + (@size/2), @pos_y +@size, @bullet_speed
   end
   def can_fire
     return @cooldown <= 0
@@ -67,6 +69,15 @@ class Player
     if(!@needs_deleting)
       $sprites << [@pos_x, @pos_y, @size*1.2, @size*1.9, "sprites/kestral.png"]
     end
+  end
+  def increase_speed ratio = 1.5
+    @speed*=ratio
+  end
+  def increase_bullet_speed ratio = 1.5
+    @bullet_speed*=ratio
+  end
+  def decrease_cooldown ratio = 0.75
+    @max_cooldown*=ratio
   end
 end
 
@@ -203,13 +214,14 @@ class InvadersGame
   def initialize (args)
     @player = Player.new 30
     @bullets = []
-    @enemies = Enemy_Grid.new 10, 3, 1
+    @enemies = Enemy_Grid.new 2, 2, 1
     @death_point = 100
     @game_over = false
     @score = 0
     @high_score = 0
     @current_level = 1
     @picking_upgrade = false
+    @current_choice = 1
   end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
@@ -283,8 +295,50 @@ class InvadersGame
       start_level
     end
   end
+  def update_choices
+    if($inputs.keyboard.key_down.enter)
+      @picking_upgrade = false
+      case @current_choice % 3
+      when 0
+        @player.increase_bullet_speed
+      when 1
+        @player.increase_speed
+      when 2
+        @player.decrease_cooldown
+      end
+    end  
+    if ($inputs.keyboard.key_down.left)
+      @current_choice -= 1
+    end
+    if ($inputs.keyboard.key_down.right)
+      @current_choice += 1
+    end
+  end
   def render_choices
-    l=5
+    choices_size_x = 70
+    choices_size_y = 95
+    expanded_size_x = choices_size_x * 1.5
+    expanded_size_y = choices_size_y * 1.5
+    left_x = $game_left_extent + $game_width/4
+    center_x = $game_left_extent + 2*$game_width/4
+    right_x = $game_left_extent + 3*$game_width/4
+    choice_y = 2*$screen_height/3
+    choice_standard_y= choice_y - 0.5*choices_size_y
+    choice_expanded_y = choice_y - 0.5*expanded_size_y
+    case @current_choice % 3
+    when 0
+      $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/red.png"]
+      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/green.png"]
+      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/blue.png"]
+    when 1
+      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/red.png"]
+      $sprites << [center_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/green.png"]
+      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/blue.png"]
+    when 2
+      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/red.png"]
+      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/green.png"]
+      $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/blue.png"]
+    end
   end
   def tick
     render_background
@@ -292,6 +346,7 @@ class InvadersGame
       render_game_over
       restart_game_if_prompted
     elsif @picking_upgrade
+      update_choices
       render_choices
     else
       update_player
@@ -300,7 +355,7 @@ class InvadersGame
       if(@enemies.any_alive)
         update_enemies
       else
-        #@picking_upgrade = true
+        @picking_upgrade = true
         @current_level+=1
         start_level
       end
