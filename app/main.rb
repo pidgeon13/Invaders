@@ -216,10 +216,26 @@ class InvadersGame
     @death_point = 100
     @game_over = false
     @score = 0
+    @number_red=0
+    @number_green=0
+    @number_blue=0
     @high_score = 0
     @current_level = 1
     @picking_upgrade = false
     @current_choice = 1
+  end
+  def render_uprade_array colour, pos_x, pos_y, number
+    size_x = 28
+    size_y = 38
+    for i in 0..number-1
+      $sprites << [pos_x - 0.5*size_x, pos_y + i*(size_y+2), size_x, size_y, sprite(colour)]
+    end
+  end
+  def render_upgrades
+    upgrade_start_y = $screen_height/8
+    render_uprade_array :red, $game_left_extent/4, upgrade_start_y, @number_red
+    render_uprade_array :green, 2*$game_left_extent/4, upgrade_start_y, @number_green
+    render_uprade_array :blue, 3*$game_left_extent/4, upgrade_start_y, @number_blue
   end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
@@ -228,6 +244,7 @@ class InvadersGame
     $labels << [$game_right_extent+$game_width/4,7*$screen_height/8, "Score: #{@score}", 4, 1, 255, 255, 255]
     $labels << [$game_right_extent+$game_width/4,3*$screen_height/4, "High Score: #{@high_score }", 4, 1, 255, 255, 255]
     $labels << [$game_left_extent-$game_width/4,7*$screen_height/8, "Level: #{@current_level }", 4, 1, 255, 255, 255]
+    render_upgrades
   end
   def update_bullets
     if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
@@ -279,12 +296,15 @@ class InvadersGame
       restart 15, 5, 0.4*(@current_level+1)
     end 
   end
-  def restart enemy_grid_x, enemy_grid_y, velocity, reset_score = false
+  def restart enemy_grid_x, enemy_grid_y, velocity, reset_to_start = false
     @bullets = []
     @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity
     @game_over=false
-    if reset_score
-      @score=0 
+    if reset_to_start
+      @score=0
+      @number_red=0
+      @number_green=0
+      @number_blue=0
     end
   end
   def restart_game_if_prompted
@@ -299,10 +319,13 @@ class InvadersGame
       case @current_choice % 3
       when 0
         @player.increase_bullet_speed
+        @number_red+=1
       when 1
         @player.increase_speed
+        @number_green+=1
       when 2
         @player.decrease_cooldown
+        @number_blue+=1
       end
     end  
     if ($inputs.keyboard.key_down.left)
@@ -310,6 +333,16 @@ class InvadersGame
     end
     if ($inputs.keyboard.key_down.right)
       @current_choice += 1
+    end
+  end
+  def sprite symbol
+    case symbol
+    when :red
+      return "sprites/red.png"
+    when :green
+      return "sprites/green.png"
+    when :blue
+      return "sprites/blue.png"
     end
   end
   def RGB symbol
@@ -335,21 +368,21 @@ class InvadersGame
     choice_expanded_y = choice_y - 0.5*expanded_size_y
     case @current_choice % 3
     when 0
-      $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/red.png"]
-      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/green.png"]
-      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/blue.png"]
+      $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, sprite(:red)]
+      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:green)]
+      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:blue)]
       text = "Increase bullet speed"
       colour=:red
     when 1
-      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/red.png"]
-      $sprites << [center_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/green.png"]
-      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/blue.png"]
+      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:red)]
+      $sprites << [center_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, sprite(:green)]
+      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:blue)]
       text="Increase movement speed"
       colour=:green
     when 2
-      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/red.png"]
-      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/green.png"]
-      $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/blue.png"]
+      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:red)]
+      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:green)]
+      $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, sprite(:blue)]
       text = "Increase rate of fire"
       colour=:blue
     end
