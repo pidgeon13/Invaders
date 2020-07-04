@@ -1,5 +1,3 @@
-$gtk.reset
-
 $screen_width = 1280
 $screen_height = 720
 $game_width = 600
@@ -70,13 +68,13 @@ class Player
       $sprites << [@pos_x, @pos_y, @size*1.2, @size*1.9, "sprites/kestral.png"]
     end
   end
-  def increase_speed ratio = 1.5
+  def increase_speed ratio = 1.3
     @speed*=ratio
   end
   def increase_bullet_speed ratio = 1.5
     @bullet_speed*=ratio
   end
-  def decrease_cooldown ratio = 0.75
+  def decrease_cooldown ratio = 0.9
     @max_cooldown*=ratio
   end
 end
@@ -314,6 +312,16 @@ class InvadersGame
       @current_choice += 1
     end
   end
+  def RGB symbol
+    case symbol
+    when :red
+      return [255,100,100]
+    when :green
+      [100,255,100]
+    when :blue
+      [128,155,255]
+    end
+  end
   def render_choices
     choices_size_x = 70
     choices_size_y = 95
@@ -330,15 +338,23 @@ class InvadersGame
       $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/red.png"]
       $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/green.png"]
       $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/blue.png"]
+      text = "Increase bullet speed"
+      colour=:red
     when 1
       $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/red.png"]
       $sprites << [center_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/green.png"]
       $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/blue.png"]
+      text="Increase movement speed"
+      colour=:green
     when 2
       $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/red.png"]
       $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, "sprites/green.png"]
       $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, "sprites/blue.png"]
+      text = "Increase rate of fire"
+      colour=:blue
     end
+    $labels << [center_x,$screen_height/2, text, 4, 1, *RGB(colour)]
+    $labels << [center_x,3*$screen_height/8, "Press Enter to select", 2, 1, 255, 255, 255]
   end
   def tick
     render_background
