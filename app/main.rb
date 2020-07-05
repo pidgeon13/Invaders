@@ -74,7 +74,7 @@ class Player
   def increase_bullet_speed ratio = 1.5
     @bullet_speed*=ratio
   end
-  def decrease_cooldown ratio = 0.9
+  def decrease_cooldown ratio = 0.95
     @max_cooldown*=ratio
   end
 end
@@ -214,15 +214,14 @@ class InvadersGame
     @bullets = []
     @enemies = Enemy_Grid.new 2, 2, 1
     @death_point = 100
-    @game_over = false
+    @current_state = :main_menu
     @score = 0
     @number_red=0
     @number_green=0
     @number_blue=0
     @high_score = 0
     @current_level = 1
-    @picking_upgrade = false
-    @current_choice = 1
+    @current_choice = 0
   end
   def render_uprade_array colour, pos_x, pos_y, number
     size_x = 28
@@ -277,7 +276,7 @@ class InvadersGame
     @enemies.move
     @enemies.render
     if(@enemies.pos_y <= @death_point)
-      @game_over=true
+      set_state(:game_over)
     end
   end
   def render_game_over
@@ -287,7 +286,7 @@ class InvadersGame
   def start_level
     case @current_level
     when 1
-      restart 10, 3, 1, true
+      restart 2, 2, 1, true
     when 2
       restart 15, 4, 1.5
     when 3
@@ -296,10 +295,13 @@ class InvadersGame
       restart 15, 5, 0.4*(@current_level+1)
     end 
   end
+  def set_state symbol
+    @current_state = symbol
+  end
   def restart enemy_grid_x, enemy_grid_y, velocity, reset_to_start = false
     @bullets = []
     @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity
-    @game_over=false
+    set_state(:playing)
     if reset_to_start
       @score=0
       @number_red=0
@@ -315,7 +317,7 @@ class InvadersGame
   end
   def update_choices
     if($inputs.keyboard.key_down.enter)
-      @picking_upgrade = false
+      start_level
       case @current_choice % 3
       when 0
         @player.increase_bullet_speed
@@ -389,24 +391,65 @@ class InvadersGame
     $labels << [center_x,$screen_height/2, text, 4, 1, *RGB(colour)]
     $labels << [center_x,3*$screen_height/8, "Press Enter to select", 2, 1, 255, 255, 255]
   end
+  def render_menu
+    $solids << [0,0, $screen_width, $screen_height]
+    start_y = 2*$screen_height/3
+    quit_y = $screen_height/2
+    $labels << [$game_left_extent+$game_width/2, start_y, "Start", 10, 1, 255, 255, 255]
+    $labels << [$game_left_extent+$game_width/2, quit_y, "Quit", 10, 1, 255, 255, 255]
+    size = 100
+    case @current_choice % 2
+    when 0
+      start_size = $gtk.calcstringbox("Start", 10) 
+      pos_y = start_y - 3*start_size[1]/2
+    when 1
+      quit_size = $gtk.calcstringbox("Quit", 10) 
+      pos_y = quit_y - 3*quit_size[1]/2
+    end
+    $sprites << [$game_left_extent+$game_width/2 - 180, pos_y, size, size, "sprites/arrow.png"]
+  end
+  def update_menu
+    if($inputs.keyboard.key_down.enter)
+      case @current_choice % 2
+      when 0
+        @current_level = 1
+        start_level
+      when 1
+        exit
+      end
+    end 
+    if ($inputs.keyboard.key_down.up)
+      @current_choice -= 1
+    end
+    if ($inputs.keyboard.key_down.down)
+      @current_choice += 1
+    end
+  end
   def tick
-    render_background
-    if @game_over
+    case @current_state
+    when :main_menu
+      render_menu
+      update_menu
+    when :game_over
+      render_background
       render_game_over
       restart_game_if_prompted
-    elsif @picking_upgrade
+    when :picking_upgrade
+      render_background
       update_choices
       render_choices
-    else
+    when :playing
+      render_background
       update_player
       update_bullets
       @enemies.clean
       if(@enemies.any_alive)
         update_enemies
       else
-        @picking_upgrade = true
+        puts "picking"
+        set_state(:picking_upgrade)
+        @current_choice=1
         @current_level+=1
-        start_level
       end
     end
   end
