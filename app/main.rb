@@ -31,7 +31,7 @@ end
 class Player
   attr_reader :pos_x
   attr_reader :pos_y
-  def initialize size
+  def initialize size = 60
     @size = size
     @pos_x = ($screen_width - @size) / 2
     @pos_y = 10
@@ -65,7 +65,7 @@ class Player
   end
   def render
     if(!@needs_deleting)
-      $sprites << [@pos_x, @pos_y, @size*1.2, @size*1.9, "sprites/kestral.png"]
+      $sprites << [@pos_x, @pos_y, @size, @size*0.75, "sprites/playerShip1_green.png"]
     end
   end
   def increase_speed ratio = 1.3
@@ -81,11 +81,11 @@ end
 
 class Enemy_Grid
   attr_reader :pos_y
-  def initialize number_x, number_y, velocity = 1, left = $game_left_extent, top = $screen_height, size_x = 30
+  def initialize number_x, number_y, velocity = 1, left = $game_left_extent, top = $screen_height, size_x = 40
     @number_x = number_x
     @number_y = number_y
     @size_x = size_x
-    @size_y = size_x*(337/259)
+    @size_y = size_x*0.8
     @pos_x = left
     @pos_y = top - @number_y * @size_y
     @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
@@ -97,7 +97,7 @@ class Enemy_Grid
       column=@grid[i]
       for j in 0..column.length-1
         if(column[j]!=0)
-          $sprites << [@pos_x+i*@size_x, @pos_y + j*@size_y, @size_x, @size_y, "sprites/mantis_crop.png"]
+          $sprites << [@pos_x+i*@size_x, @pos_y + j*@size_y, @size_x, @size_y, "sprites/enemyBlue2.png"]
         end
       end
     end
@@ -210,7 +210,7 @@ end
 
 class InvadersGame
   def initialize (args)
-    @player = Player.new 30
+    @player = Player.new
     @bullets = []
     @enemies = Enemy_Grid.new 2, 2, 1
     @death_point = 100
@@ -222,12 +222,18 @@ class InvadersGame
     @high_score = 0
     @current_level = 1
     @current_choice = 0
+    $sounds << "audio/DSCut.ogg"
   end
   def render_uprade_array colour, pos_x, pos_y, number
     size_x = 28
     size_y = 38
-    for i in 0..number-1
-      $sprites << [pos_x - 0.5*size_x, pos_y + i*(size_y+2), size_x, size_y, sprite(colour)]
+    tens = (number / 10).floor
+    rem = number.to_i % 10
+    for i in 0..rem-1
+      $sprites << [pos_x - 0.5*size_x, pos_y + i*(size_y+2), size_x, size_y, sprite(colour)] 
+    end
+    if(tens > 0)
+      $labels << [pos_x, pos_y-size_y/2, "#{tens*10 }", 4, 1, *RGB(colour)]
     end
   end
   def render_upgrades
@@ -288,11 +294,11 @@ class InvadersGame
     when 1
       restart 2, 2, 1, true
     when 2
-      restart 15, 4, 1.5
+      restart 10, 4, 1.5
     when 3
-      restart 15, 4, 2
+      restart 12, 4, 2
     else
-      restart 15, 5, 0.4*(@current_level+1)
+      restart 12, 5, 0.4*(@current_level+1)
     end 
   end
   def set_state symbol
