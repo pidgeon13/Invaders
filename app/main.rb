@@ -64,9 +64,7 @@ class Player
     return @cooldown <= 0
   end
   def render
-    if(!@needs_deleting)
-      $sprites << [@pos_x, @pos_y, @size, @size*0.75, "sprites/playerShip1_green.png"]
-    end
+    $sprites << [@pos_x, @pos_y, @size, @size*0.75, "sprites/playerShip1_green.png"]
   end
   def increase_speed ratio = 1.3
     @speed*=ratio
@@ -242,6 +240,18 @@ class InvadersGame
     render_uprade_array :green, 2*$game_left_extent/4, upgrade_start_y, @number_green
     render_uprade_array :blue, 3*$game_left_extent/4, upgrade_start_y, @number_blue
   end
+  def render_controls
+    controls_x =$game_right_extent+$game_width/3
+    arrows_y = $screen_height/3
+    space_y = arrows_y - 70
+    enter_y = space_y - 70
+    $sprites << [controls_x,arrows_y, 120, 84, "sprites/left_right.png"]
+    $sprites << [controls_x,space_y, 120, 60, "sprites/space.png"]
+    $sprites << [controls_x,enter_y, 120, 50, "sprites/enter.png"]
+    $labels << [controls_x - 15, arrows_y + 60, "Move:", 10, 2, 255,255,255]
+    $labels << [controls_x - 15, space_y + 50, "Shoot:", 10, 2, 255,255,255]
+    $labels << [controls_x - 15, enter_y  + 50, "Select:", 10, 2, 255,255,255]
+  end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
     $solids << [$game_left_extent, 0, $game_width, $screen_height]
@@ -249,6 +259,7 @@ class InvadersGame
     $labels << [$game_right_extent+$game_width/4,7*$screen_height/8, "Score: #{@score}", 4, 1, 255, 255, 255]
     $labels << [$game_right_extent+$game_width/4,3*$screen_height/4, "High Score: #{@high_score }", 4, 1, 255, 255, 255]
     $labels << [$game_left_extent-$game_width/4,7*$screen_height/8, "Level: #{@current_level }", 4, 1, 255, 255, 255]
+    render_controls
     render_upgrades
   end
   def update_bullets
@@ -268,6 +279,9 @@ class InvadersGame
       bullet.render
     end
   end
+  def render_player
+    @player.render
+  end
   def update_player
     if ($inputs.keyboard.key_held.left)
       @player.move_left
@@ -275,12 +289,18 @@ class InvadersGame
     if ($inputs.keyboard.key_held.right)
       @player.move_right
     end
+    if($inputs.keyboard.key_down.escape)
+      set_state :pause
+    end
     @player.update
-    @player.render
+    render_player
+  end
+  def render_enemies
+    @enemies.render
   end
   def update_enemies
     @enemies.move
-    @enemies.render
+    render_enemies
     if(@enemies.pos_y <= @death_point)
       set_state(:game_over)
     end
@@ -361,6 +381,8 @@ class InvadersGame
       [100,255,100]
     when :blue
       [128,155,255]
+    when :white
+      [255,255,255]
     end
   end
   def render_choices
@@ -415,7 +437,7 @@ class InvadersGame
     $sprites << [$game_left_extent+$game_width/2 - 180, pos_y, size, size, "sprites/arrow.png"]
   end
   def update_menu
-    if($inputs.keyboard.key_down.enter)
+    if($inputs.keyboard.key_down.enter || $inputs.keyboard.key_down.space)
       case @current_choice % 2
       when 0
         @current_level = 1
@@ -431,11 +453,21 @@ class InvadersGame
       @current_choice += 1
     end
   end
+  def render_pause
+    $labels << [$game_left_extent+$game_width/2,2*$screen_height/3, "Paused", 15, 1, *RGB(:white)]
+    render_player
+    if($inputs.keyboard.key_down.escape)
+      set_state :playing
+    end
+  end
   def tick
     case @current_state
     when :main_menu
       render_menu
       update_menu
+    when :pause
+      render_background
+      render_pause
     when :game_over
       render_background
       render_game_over
