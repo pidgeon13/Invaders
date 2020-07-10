@@ -1,0 +1,6 @@
+devid=pidgeon13
+devtitle=Stephen Pidgeon
+gameid=invadersdr
+gametitle=Invaders DR
+version=0.1
+icon=metadata/icon.png
