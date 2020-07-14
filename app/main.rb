@@ -5,23 +5,35 @@ $game_width = 600
 $game_left_extent = ($screen_width-$game_width)/2
 $game_right_extent=$game_left_extent + $game_width
 
+def RGB symbol
+  return [255,55,55] if symbol == :red
+  return [100,255,100] if symbol == :green
+  return [128,155,255] if symbol == :blue
+  return [255,255,255] if symbol == :white
+  return [0,0,0] if symbol == :black
+  return [64,64,64] if symbol == :dark_grey
+  return [128,128,128] if symbol == :light_grey
+  return [255, 0, 255] if symbol == :purple
+end
+
 class Bullet
   attr_reader :pos_x
   attr_reader :pos_y
   attr_reader :needs_deleting
-  def initialize pos_x, pos_y, speed, dir = 1
+  def initialize pos_x, pos_y, speed, dir = 1, colour = :purple
     @pos_x = pos_x
     @pos_y = pos_y
     @dir = dir
     @speed = speed
     @size = 5
     @needs_deleting = false
+    @colour = colour
   end
   def move
     @pos_y += (@dir*10*@speed)
   end
   def render
-    $solids << [@pos_x, @pos_y, @size, @size, 255, 0, 255]
+    $solids << [@pos_x, @pos_y, @size, @size, *RGB(@colour)]
   end
   def remove
     @needs_deleting = true
@@ -32,8 +44,9 @@ class Player
   attr_reader :pos_x
   attr_reader :pos_y
   def initialize size = 60
-    @size = size
-    @pos_x = ($screen_width - @size) / 2
+    @size_x = size
+    @size_y = @size_x*0.75
+    @pos_x = ($screen_width - @size_x) / 2
     @pos_y = 10
     @speed = 8
     @cooldown = 0
@@ -51,20 +64,23 @@ class Player
     end
   end
   def move_right
-    if(@pos_x <= $game_right_extent - @size - @speed)
+    if(@pos_x <= $game_right_extent - @size_x - @speed)
       @pos_x+=@speed
     end
   end
   def fire_bullet
     @cooldown=@max_cooldown
     $sounds << "audio/flaunch.wav"
-    return Bullet.new @pos_x + (@size/2), @pos_y +@size, @bullet_speed
+    return Bullet.new @pos_x + (@size_x/2), @pos_y + @size_x, @bullet_speed
+  end
+  def hit_by bullet
+    [bullet.pos_x,bullet.pos_y].intersect_rect? [@pos_x, @pos_y, @size_x, @size_y]
   end
   def can_fire
     return @cooldown <= 0
   end
   def render
-    $sprites << [@pos_x, @pos_y, @size, @size*0.75, "sprites/playerShip1_green.png"]
+    $sprites << [@pos_x, @pos_y, @size_x, @size_y, "sprites/playerShip1_green.png"]
   end
   def increase_speed ratio = 1.3
     @speed*=ratio
@@ -79,6 +95,8 @@ end
 
 class Enemy_Grid
   attr_reader :pos_y
+  attr_reader :number_x
+  attr_reader :number_y
   def initialize number_x, number_y, velocity = 1, left = $game_left_extent, top = $screen_height, size_x = 40
     @number_x = number_x
     @number_y = number_y
@@ -89,6 +107,8 @@ class Enemy_Grid
     @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
     @velocity = velocity
     @vertical_jump = @size_y/2
+    @max_bullet_cooldown = 60
+    @current_bullet_cooldown = @max_bullet_cooldown
   end
   def render
     for i in 0..@grid.length-1
@@ -145,6 +165,18 @@ class Enemy_Grid
   def is_empty column
     return column.all? {|value| value == 0}
   end
+  def true_center_pos column_index, row_index
+    return [@pos_x + ((2*column_index+1)*@size_x)/2, @pos_y + ((2*row_index+1)*@size_y)/2]
+  end
+  def fire_bullet column_index
+    row_index = @grid[column_index].index {|x| x != 0} 
+    if !row_index.nil?
+      @current_bullet_cooldown = @max_bullet_cooldown
+      return Bullet.new(*true_center_pos(column_index, row_index), 0.5 , -1, :red)
+    else
+      return nil
+    end
+  end
   def clean_columns
     indexes_to_remove = []
     possible_indexes_to_remove = []
@@ -197,6 +229,12 @@ class Enemy_Grid
     @pos_y += rows_to_clean*@size_y
     return true
   end
+  def update
+    @current_bullet_cooldown -= 1
+  end
+  def can_fire
+    return @current_bullet_cooldown <= 0
+  end
   def clean
     clean_columns
     clean_rows
@@ -211,6 +249,7 @@ class InvadersGame
     @player = Player.new
     @bullets = []
     @enemies = Enemy_Grid.new 2, 2, 1
+    @enemy_bullets = []
     @death_point = 100
     @current_state = :main_menu
     @score = 0
@@ -262,7 +301,7 @@ class InvadersGame
     render_controls
     render_upgrades
   end
-  def update_bullets
+  def update_player_bullets
     if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
       if @player.can_fire
         @bullets << @player.fire_bullet
@@ -298,8 +337,29 @@ class InvadersGame
   def render_enemies
     @enemies.render
   end
+  def fire_enemy_bullets
+    enemy_bullet = @enemies.fire_bullet(rand(@enemies.number_x))
+    if !enemy_bullet.nil?
+      @enemy_bullets << enemy_bullet
+    end
+  end
+  def update_enemy_bullets
+    @enemy_bullets.each do |bullet|
+      bullet.move
+      bullet.render
+      if(@player.hit_by bullet)
+        set_state(:game_over)
+      end
+    end
+    @enemy_bullets.delete_if {|bullet| bullet.pos_y <= 0}
+  end
   def update_enemies
     @enemies.move
+    @enemies.update
+    if(@enemies.can_fire)
+      fire_enemy_bullets
+    end
+    update_enemy_bullets
     render_enemies
     if(@enemies.pos_y <= @death_point)
       set_state(:game_over)
@@ -326,6 +386,7 @@ class InvadersGame
   end
   def restart enemy_grid_x, enemy_grid_y, velocity, reset_to_start = false
     @bullets = []
+    @enemy_bullets = []
     @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity
     set_state(:playing)
     if reset_to_start
@@ -371,18 +432,6 @@ class InvadersGame
       return "sprites/green.png"
     when :blue
       return "sprites/blue.png"
-    end
-  end
-  def RGB symbol
-    case symbol
-    when :red
-      return [255,100,100]
-    when :green
-      [100,255,100]
-    when :blue
-      [128,155,255]
-    when :white
-      [255,255,255]
     end
   end
   def render_choices
@@ -479,7 +528,7 @@ class InvadersGame
     when :playing
       render_background
       update_player
-      update_bullets
+      update_player_bullets
       @enemies.clean
       if(@enemies.any_alive)
         update_enemies
