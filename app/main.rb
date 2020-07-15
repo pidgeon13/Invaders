@@ -468,30 +468,50 @@ class InvadersGame
     $labels << [center_x,$screen_height/2, text, 4, 1, *RGB(colour)]
     $labels << [center_x,3*$screen_height/8, "Press Enter to select", 2, 1, 255, 255, 255]
   end
+  def get_text_height string
+    return $gtk.calcstringbox(string, 20)[1]
+  end
   def render_menu
     $solids << [0,0, $screen_width, $screen_height]
     start_y = 2*$screen_height/3
-    quit_y = $screen_height/2
-    $labels << [$game_left_extent+$game_width/2, start_y, "Start", 10, 1, 255, 255, 255]
-    $labels << [$game_left_extent+$game_width/2, quit_y, "Quit", 10, 1, 255, 255, 255]
-    size = 100
-    case @current_choice % 2
-    when 0
-      start_size = $gtk.calcstringbox("Start", 10) 
-      pos_y = start_y - 3*start_size[1]/2
+    options_y = $screen_height/2
+    quit_y = $screen_height/3
+    case @current_choice % 3
+    when 0 
+      start_font_size = 20
+      options_font_size = 10
+      quit_font_size = 10
+      start_colour = :red
+      options_colour = :white
+      quit_colour = :white
     when 1
-      quit_size = $gtk.calcstringbox("Quit", 10) 
-      pos_y = quit_y - 3*quit_size[1]/2
+      start_font_size = 10
+      options_font_size = 20
+      quit_font_size = 10
+      start_colour = :white
+      options_colour = :red
+      quit_colour = :white
+    when 2
+      start_font_size = 10
+      options_font_size = 10
+      quit_font_size = 20
+      start_colour = :white
+      options_colour = :white
+      quit_colour = :red
     end
-    $sprites << [$game_left_extent+$game_width/2 - 180, pos_y, size, size, "sprites/arrow.png"]
+    $labels << [$game_left_extent+$game_width/2, start_y, "Start", start_font_size, 1, *RGB(start_colour)]
+    $labels << [$game_left_extent+$game_width/2, options_y, "Options", options_font_size, 1, *RGB(options_colour)]
+    $labels << [$game_left_extent+$game_width/2, quit_y, "Quit", quit_font_size, 1, *RGB(quit_colour)]
   end
   def update_menu
     if($inputs.keyboard.key_down.enter || $inputs.keyboard.key_down.space)
-      case @current_choice % 2
+      case @current_choice % 3
       when 0
         @current_level = 1
         start_level
       when 1
+        set_state(:options)
+      when 2
         exit
       end
     end 
@@ -514,6 +534,8 @@ class InvadersGame
     when :main_menu
       render_menu
       update_menu
+    when :options
+      
     when :pause
       render_background
       render_pause
