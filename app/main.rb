@@ -91,6 +91,11 @@ class Player
   def decrease_cooldown ratio = 0.95
     @max_cooldown*=ratio
   end
+  def reset_attributes
+    @speed = 8
+    @bullet_speed = 1
+    @max_cooldown = 30
+  end
 end
 
 class Enemy_Grid
@@ -302,7 +307,7 @@ class InvadersGame
     render_upgrades
   end
   def update_player_bullets
-    if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space
+    if $inputs.keyboard.key_down.space || $inputs.keyboard.key_held.space || $inputs.controller_one.key_down.a || $inputs.controller_one.key_held.a
       if @player.can_fire
         @bullets << @player.fire_bullet
       end
@@ -322,13 +327,13 @@ class InvadersGame
     @player.render
   end
   def update_player
-    if ($inputs.keyboard.key_held.left)
+    if ($inputs.keyboard.key_held.left || $inputs.controller_one.key_held.left)
       @player.move_left
     end
-    if ($inputs.keyboard.key_held.right)
+    if ($inputs.keyboard.key_held.right || $inputs.controller_one.key_held.right)
       @player.move_right
     end
-    if($inputs.keyboard.key_down.escape)
+    if(toggling_pause)
       set_state :pause
     end
     @player.update
@@ -394,16 +399,17 @@ class InvadersGame
       @number_red=0
       @number_green=0
       @number_blue=0
+      @player.reset_attributes
     end
   end
   def restart_game_if_prompted
-    if $inputs.keyboard.key_down.enter
+    if $inputs.keyboard.key_down.enter || $inputs.controller_one.key_down.start
       @current_level = 1
       start_level
     end
   end
   def update_choices
-    if($inputs.keyboard.key_down.enter)
+    if($inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a)
       start_level
       case @current_choice % 3
       when 0
@@ -417,10 +423,10 @@ class InvadersGame
         @number_blue+=1
       end
     end  
-    if ($inputs.keyboard.key_down.left)
+    if ($inputs.keyboard.key_down.left || $inputs.controller_one.key_down.left)
       @current_choice -= 1
     end
-    if ($inputs.keyboard.key_down.right)
+    if ($inputs.keyboard.key_down.right || $inputs.controller_one.key_down.right)
       @current_choice += 1
     end
   end
@@ -503,8 +509,14 @@ class InvadersGame
     $labels << [$game_left_extent+$game_width/2, options_y, "Options", options_font_size, 1, *RGB(options_colour)]
     $labels << [$game_left_extent+$game_width/2, quit_y, "Quit", quit_font_size, 1, *RGB(quit_colour)]
   end
+  def moving_selection_up
+    $inputs.keyboard.key_down.up || $inputs.controller_one.key_down.up
+  end
+  def moving_selection_down
+    $inputs.keyboard.key_down.down || $inputs.controller_one.key_down.down
+  end
   def update_menu
-    if($inputs.keyboard.key_down.enter || $inputs.keyboard.key_down.space)
+    if($inputs.keyboard.key_down.enter || $inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a || $inputs.controller_one.key_down.b)
       case @current_choice % 3
       when 0
         @current_level = 1
@@ -515,17 +527,20 @@ class InvadersGame
         exit
       end
     end 
-    if ($inputs.keyboard.key_down.up)
+    if (moving_selection_up)
       @current_choice -= 1
     end
-    if ($inputs.keyboard.key_down.down)
+    if (moving_selection_down)
       @current_choice += 1
     end
+  end
+  def toggling_pause
+    $inputs.keyboard.key_down.escape || $inputs.controller_one.key_down.start
   end
   def render_pause
     $labels << [$game_left_extent+$game_width/2,2*$screen_height/3, "Paused", 15, 1, *RGB(:white)]
     render_player
-    if($inputs.keyboard.key_down.escape)
+    if(toggling_pause)
       set_state :playing
     end
   end
