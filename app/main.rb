@@ -43,6 +43,7 @@ end
 class Player
   attr_reader :pos_x
   attr_reader :pos_y
+  attr_reader :colour
   def initialize size = 60
     @size_x = size
     @size_y = @size_x*0.75
@@ -52,6 +53,7 @@ class Player
     @cooldown = 0
     @max_cooldown = 30
     @bullet_speed = 1
+    @colour = 0
   end
   def update
     if(@cooldown > 0)
@@ -79,8 +81,19 @@ class Player
   def can_fire
     return @cooldown <= 0
   end
+  def set_colour colour
+    @colour = colour
+  end
+  def sprite number
+    case number
+    when 0 then "sprites/player_green.png"
+    when 1 then "sprites/player_blue.png"
+    when 2 then "sprites/player_red.png"
+    when 3 then "sprites/player_orange.png"
+    end
+  end
   def render
-    $sprites << [@pos_x, @pos_y, @size_x, @size_y, "sprites/playerShip1_green.png"]
+    $sprites << [@pos_x, @pos_y, @size_x, @size_y, sprite(@colour)]
   end
   def increase_speed ratio = 1.3
     @speed*=ratio
@@ -256,6 +269,7 @@ class InvadersGame
     @enemies = Enemy_Grid.new 2, 2, 1
     @enemy_bullets = []
     @death_point = 100
+    @previous_state = :main_menu
     @current_state = :main_menu
     @score = 0
     @number_red=0
@@ -272,7 +286,7 @@ class InvadersGame
     tens = (number / 10).floor
     rem = number.to_i % 10
     for i in 0..rem-1
-      $sprites << [pos_x - 0.5*size_x, pos_y + i*(size_y+2), size_x, size_y, sprite(colour)] 
+      $sprites << [pos_x - 0.5*size_x, pos_y + i*(size_y+2), size_x, size_y, upgrade_sprite(colour)] 
     end
     if(tens > 0)
       $labels << [pos_x, pos_y-size_y/2, "#{tens*10 }", 4, 1, *RGB(colour)]
@@ -387,6 +401,7 @@ class InvadersGame
     end 
   end
   def set_state symbol
+    @previous_state = @current_state
     @current_state = symbol
   end
   def restart enemy_grid_x, enemy_grid_y, velocity, reset_to_start = false
@@ -408,8 +423,16 @@ class InvadersGame
       start_level
     end
   end
+  def move_selection
+    if ($inputs.keyboard.key_down.left || $inputs.controller_one.key_down.left)
+      @current_choice -= 1
+    end
+    if ($inputs.keyboard.key_down.right || $inputs.controller_one.key_down.right)
+      @current_choice += 1
+    end
+  end
   def update_choices
-    if($inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a)
+    if(selection_made)
       start_level
       case @current_choice % 3
       when 0
@@ -423,14 +446,9 @@ class InvadersGame
         @number_blue+=1
       end
     end  
-    if ($inputs.keyboard.key_down.left || $inputs.controller_one.key_down.left)
-      @current_choice -= 1
-    end
-    if ($inputs.keyboard.key_down.right || $inputs.controller_one.key_down.right)
-      @current_choice += 1
-    end
+    move_selection
   end
-  def sprite symbol
+  def upgrade_sprite symbol
     case symbol
     when :red
       return "sprites/red.png"
@@ -453,21 +471,21 @@ class InvadersGame
     choice_expanded_y = choice_y - 0.5*expanded_size_y
     case @current_choice % 3
     when 0
-      $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, sprite(:red)]
-      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:green)]
-      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:blue)]
+      $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, upgrade_sprite(:red)]
+      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, upgrade_sprite(:green)]
+      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, upgrade_sprite(:blue)]
       text = "Increase bullet speed"
       colour=:red
     when 1
-      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:red)]
-      $sprites << [center_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, sprite(:green)]
-      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:blue)]
+      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, upgrade_sprite(:red)]
+      $sprites << [center_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, upgrade_sprite(:green)]
+      $sprites << [right_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, upgrade_sprite(:blue)]
       text="Increase movement speed"
       colour=:green
     when 2
-      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:red)]
-      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, sprite(:green)]
-      $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, sprite(:blue)]
+      $sprites << [left_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, upgrade_sprite(:red)]
+      $sprites << [center_x - 0.5*choices_size_x, choice_standard_y, choices_size_x, choices_size_y, upgrade_sprite(:green)]
+      $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, upgrade_sprite(:blue)]
       text = "Increase rate of fire"
       colour=:blue
     end
@@ -477,8 +495,11 @@ class InvadersGame
   def get_text_height string
     return $gtk.calcstringbox(string, 20)[1]
   end
-  def render_menu
+  def render_full_background
     $solids << [0,0, $screen_width, $screen_height]
+  end
+  def render_menu
+    render_full_background
     start_y = 2*$screen_height/3
     options_y = $screen_height/2
     quit_y = $screen_height/3
@@ -516,13 +537,14 @@ class InvadersGame
     $inputs.keyboard.key_down.down || $inputs.controller_one.key_down.down
   end
   def update_menu
-    if($inputs.keyboard.key_down.enter || $inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a || $inputs.controller_one.key_down.b)
+    if(selection_made)
       case @current_choice % 3
       when 0
         @current_level = 1
         start_level
       when 1
         set_state(:options)
+        @current_choice = @player.colour
       when 2
         exit
       end
@@ -544,13 +566,61 @@ class InvadersGame
       set_state :playing
     end
   end
+  def selection_made 
+    $inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a
+  end
+  def render_ship_options
+    left_x = $screen_width/5
+    center_left_x = 2*$screen_width/5
+    center_right_x = 3*$screen_width/5
+    right_x = 4*$screen_width/5
+    size_x = 100
+    size_y = size_x*0.75
+    expanded_size_x = size_x * 1.5
+    expanded_size_y = size_y * 1.5
+    choice_y = 2*$screen_height/3
+    choice_standard_y= choice_y - 0.5*size_y
+    choice_expanded_y = choice_y - 0.5*size_y
+    case @current_choice % 4
+    when 0
+      $sprites << [left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, @player.sprite(0)]
+      $sprites << [center_left_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(1)]
+      $sprites << [center_right_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(2)]
+      $sprites << [right_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(3)]
+    when 1
+      $sprites << [left_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(0)]
+      $sprites << [center_left_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, @player.sprite(1)]
+      $sprites << [center_right_x- 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(2)]
+      $sprites << [right_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(3)]
+    when 2
+      $sprites << [left_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(0)]
+      $sprites << [center_left_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(1)]
+      $sprites << [center_right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, @player.sprite(2)]
+      $sprites << [right_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(3)]
+    when 3
+      $sprites << [left_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(0)]
+      $sprites << [center_left_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(1)]
+      $sprites << [center_right_x - 0.5*size_x, choice_standard_y, size_x, size_y, @player.sprite(2)]
+      $sprites << [right_x - 0.5*expanded_size_x, choice_expanded_y, expanded_size_x, expanded_size_y, @player.sprite(3)]
+    end
+  end
+  def update_ship_options
+    if(selection_made)
+      @player.set_colour @current_choice
+      @current_choice = 1
+      set_state(@previous_state)
+    end
+    move_selection
+  end
   def tick
     case @current_state
     when :main_menu
       render_menu
       update_menu
     when :options
-      
+      render_full_background
+      render_ship_options
+      update_ship_options
     when :pause
       render_background
       render_pause
@@ -570,7 +640,6 @@ class InvadersGame
       if(@enemies.any_alive)
         update_enemies
       else
-        puts "picking"
         set_state(:picking_upgrade)
         @current_choice=1
         @current_level+=1
