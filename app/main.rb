@@ -279,6 +279,7 @@ class InvadersGame
     @current_level = 1
     @current_choice = 0
     $sounds << "audio/DSCut.ogg"
+    @current_controls_type = :keyboard
   end
   def render_uprade_array colour, pos_x, pos_y, number
     size_x = 28
@@ -299,16 +300,24 @@ class InvadersGame
     render_uprade_array :blue, 3*$game_left_extent/4, upgrade_start_y, @number_blue
   end
   def render_controls
-    controls_x =$game_right_extent+$game_width/3
+    controls_x = $game_right_extent+$game_width/3
     arrows_y = $screen_height/3
     space_y = arrows_y - 70
     enter_y = space_y - 70
-    $sprites << [controls_x,arrows_y, 120, 84, "sprites/left_right.png"]
-    $sprites << [controls_x,space_y, 120, 60, "sprites/space.png"]
-    $sprites << [controls_x,enter_y, 120, 50, "sprites/enter.png"]
-    $labels << [controls_x - 15, arrows_y + 60, "Move:", 10, 2, 255,255,255]
-    $labels << [controls_x - 15, space_y + 50, "Shoot:", 10, 2, 255,255,255]
-    $labels << [controls_x - 15, enter_y  + 50, "Select:", 10, 2, 255,255,255]
+    $labels << [controls_x - 15, arrows_y + 60, "Move:", 7, 2, 255,255,255]
+    $labels << [controls_x - 15, space_y + 50, "Shoot:", 7, 2, 255,255,255]
+    $labels << [controls_x - 15, enter_y  + 45, "Pause:", 7, 2, 255,255,255]
+    case @current_controls_type
+    when :keyboard
+      $sprites << [controls_x,arrows_y, 120, 84, "sprites/left_right.png"]
+      $sprites << [controls_x +20,space_y, 80, 54, "sprites/space.png"]
+      $sprites << [controls_x+ 35,enter_y, 50, 50, "sprites/esc.png"]
+    when :controller
+      $sprites << [controls_x,arrows_y +15, 50, 50, "sprites/controller_left.png"]
+      $sprites << [controls_x + 70,arrows_y+15, 50, 50, "sprites/controller_right.png"]
+      $sprites << [controls_x + 30,space_y, 60, 60, "sprites/controller_a.png"]
+      $sprites << [controls_x + 35,enter_y, 50, 50, "sprites/controller_start.png"]
+    end
   end
   def render_background
     $solids << [0,0, $screen_width, $screen_height, 30, 30, 30]
@@ -612,7 +621,15 @@ class InvadersGame
     end
     move_selection
   end
+  def update_controls_type
+    if ($inputs.controller_one.key_down.truthy_keys.length > 0)
+      @current_controls_type = :controller
+    elsif($inputs.keyboard.key_down.truthy_keys.length > 0)
+      @current_controls_type = :keyboard
+    end
+  end
   def tick
+    update_controls_type
     case @current_state
     when :main_menu
       render_menu
