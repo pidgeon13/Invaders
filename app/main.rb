@@ -115,7 +115,7 @@ class Enemy_Grid
   attr_reader :pos_y
   attr_reader :number_x
   attr_reader :number_y
-  def initialize number_x, number_y, velocity = 1, left = $game_left_extent, top = $screen_height, size_x = 40
+  def initialize number_x, number_y, velocity = 1, rate_of_fire = 1, left = $game_left_extent, top = $screen_height, size_x = 40
     @number_x = number_x
     @number_y = number_y
     @size_x = size_x
@@ -125,7 +125,7 @@ class Enemy_Grid
     @grid = Array.new(@number_x) {Array.new(@number_y, 1)}
     @velocity = velocity
     @vertical_jump = @size_y/2
-    @max_bullet_cooldown = 60
+    @max_bullet_cooldown = 60/rate_of_fire
     @current_bullet_cooldown = @max_bullet_cooldown
   end
   def render
@@ -300,13 +300,13 @@ class InvadersGame
     render_uprade_array :blue, 3*$game_left_extent/4, upgrade_start_y, @number_blue
   end
   def render_controls
-    controls_x = $game_right_extent+$game_width/3
+    controls_x = $game_right_extent+$game_width/3 + 10
     arrows_y = $screen_height/3
     space_y = arrows_y - 70
     enter_y = space_y - 70
-    $labels << [controls_x - 15, arrows_y + 60, "Move:", 7, 2, 255,255,255]
-    $labels << [controls_x - 15, space_y + 50, "Shoot:", 7, 2, 255,255,255]
-    $labels << [controls_x - 15, enter_y  + 45, "Pause:", 7, 2, 255,255,255]
+    $labels << [controls_x - 10, arrows_y + 55, "Move:", 5, 2, 255,255,255]
+    $labels << [controls_x - 10, space_y + 45, "Shoot/Select:", 5, 2, 255,255,255]
+    $labels << [controls_x - 10, enter_y  + 40, "Pause:", 5, 2, 255,255,255]
     case @current_controls_type
     when :keyboard
       $sprites << [controls_x,arrows_y, 120, 84, "sprites/left_right.png"]
@@ -376,6 +376,7 @@ class InvadersGame
       bullet.move
       bullet.render
       if(@player.hit_by bullet)
+        @current_choice = 0
         set_state(:game_over)
       end
     end
@@ -390,33 +391,49 @@ class InvadersGame
     update_enemy_bullets
     render_enemies
     if(@enemies.pos_y <= @death_point)
+      @current_choice = 0
       set_state(:game_over)
     end
   end
   def render_game_over
     $labels << [$game_left_extent+$game_width/2,3*$screen_height/4, "Game Over", 10, 1, 255, 255, 255]
-    $labels << [$game_left_extent+$game_width/2,5*$screen_height/8, "Press the enter key to play again", 4, 1, 255, 255, 255] 
+    start_y = $screen_height/2
+    menu_y = $screen_height/3
+    case @current_choice % 2
+    when 0
+      start_font_size = 20
+      menu_font_size = 10
+      start_colour = :red
+      menu_colour = :white
+    when 1
+      start_font_size = 10
+      menu_font_size = 20
+      start_colour = :white
+      menu_colour = :red
+    end
+    $labels << [$game_left_extent+$game_width/2, start_y, "Restart", start_font_size, 1, *RGB(start_colour)]
+    $labels << [$game_left_extent+$game_width/2, menu_y, "Main Menu", menu_font_size, 1, *RGB(menu_colour)]
   end
   def start_level
     case @current_level
     when 1
-      restart 2, 2, 1, true
+      restart 8, 2, 1, 1, true
     when 2
-      restart 10, 4, 1.5
+      restart 10, 3, 1.5, 1.15
     when 3
-      restart 12, 4, 2
+      restart 12, 3, 2, 1.3
     else
-      restart 12, 5, 0.4*(@current_level+1)
+      restart 12, 4, 0.4*(@current_level+1), 1 + (0.1*@current_level)
     end 
   end
   def set_state symbol
     @previous_state = @current_state
     @current_state = symbol
   end
-  def restart enemy_grid_x, enemy_grid_y, velocity, reset_to_start = false
+  def restart enemy_grid_x, enemy_grid_y, velocity, rate_of_fire, reset_to_start = false
     @bullets = []
     @enemy_bullets = []
-    @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity
+    @enemies = Enemy_Grid.new enemy_grid_x, enemy_grid_y, velocity, rate_of_fire
     set_state(:playing)
     if reset_to_start
       @score=0
@@ -426,13 +443,20 @@ class InvadersGame
       @player.reset_attributes
     end
   end
-  def restart_game_if_prompted
-    if $inputs.keyboard.key_down.enter || $inputs.controller_one.key_down.start
-      @current_level = 1
-      start_level
+  def update_game_over
+    move_selection_u_d
+    if selection_made
+      case @current_choice % 2
+      when 0
+        @current_level = 1
+        start_level
+      when 1
+        @current_choice = 0
+        set_state(:main_menu)
+      end
     end
   end
-  def move_selection
+  def move_selection_l_r
     if ($inputs.keyboard.key_down.left || $inputs.controller_one.key_down.left)
       @current_choice -= 1
     end
@@ -455,7 +479,7 @@ class InvadersGame
         @number_blue+=1
       end
     end  
-    move_selection
+    move_selection_l_r
   end
   def upgrade_sprite symbol
     case symbol
@@ -499,7 +523,6 @@ class InvadersGame
       colour=:blue
     end
     $labels << [center_x,$screen_height/2, text, 4, 1, *RGB(colour)]
-    $labels << [center_x,3*$screen_height/8, "Press Enter to select", 2, 1, 255, 255, 255]
   end
   def get_text_height string
     return $gtk.calcstringbox(string, 20)[1]
@@ -545,6 +568,14 @@ class InvadersGame
   def moving_selection_down
     $inputs.keyboard.key_down.down || $inputs.controller_one.key_down.down
   end
+  def move_selection_u_d
+    if (moving_selection_up)
+      @current_choice -= 1
+    end
+    if (moving_selection_down)
+      @current_choice += 1
+    end
+  end
   def update_menu
     if(selection_made)
       case @current_choice % 3
@@ -557,13 +588,8 @@ class InvadersGame
       when 2
         exit
       end
-    end 
-    if (moving_selection_up)
-      @current_choice -= 1
     end
-    if (moving_selection_down)
-      @current_choice += 1
-    end
+    move_selection_u_d
   end
   def toggling_pause
     $inputs.keyboard.key_down.escape || $inputs.controller_one.key_down.start
@@ -576,7 +602,7 @@ class InvadersGame
     end
   end
   def selection_made 
-    $inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a
+    $inputs.keyboard.key_down.space || $inputs.controller_one.key_down.a || $inputs.keyboard.key_down.enter
   end
   def render_ship_options
     left_x = $screen_width/5
@@ -616,10 +642,10 @@ class InvadersGame
   def update_ship_options
     if(selection_made)
       @player.set_colour @current_choice
-      @current_choice = 1
       set_state(@previous_state)
+      @current_choice = 1
     end
-    move_selection
+    move_selection_l_r
   end
   def update_controls_type
     if ($inputs.controller_one.key_down.truthy_keys.length > 0)
@@ -644,7 +670,7 @@ class InvadersGame
     when :game_over
       render_background
       render_game_over
-      restart_game_if_prompted
+      update_game_over
     when :picking_upgrade
       render_background
       update_choices
